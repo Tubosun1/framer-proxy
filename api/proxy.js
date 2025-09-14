@@ -12,22 +12,29 @@ export default async function handler(req, res) {
     if (contentType.includes("text/html")) {
       let body = await framerRes.text();
 
-      // Remove any static "Made with Framer" text/link
+      // Remove static "Made with Framer" references
       body = body.replace(/Made with Framer/gi, "");
       body = body.replace(/<a[^>]*href=["']https:\/\/framer\.com[^>]*>.*?<\/a>/gi, "");
 
-      // Inject script to remove/hide dynamic Framer badge
+      // Inject script to dynamically remove Framer badge
       const removerScript = `
         <script>
-          document.addEventListener("DOMContentLoaded", function() {
-            // Look for any links or elements containing "Framer"
-            const framerBadge = document.querySelectorAll('a[href*="framer.com"], [class*="framer"]');
-            framerBadge.forEach(el => el.style.display = "none");
-          });
+          function removeFramerBadge() {
+            const candidates = document.querySelectorAll('a[href*="framer.com"], [data-framer-name], [class*="framer"]');
+            candidates.forEach(el => {
+              if (el.innerText && el.innerText.includes("Framer")) {
+                el.remove();
+              }
+            });
+          }
+          // Run on load
+          document.addEventListener("DOMContentLoaded", removeFramerBadge);
+          // Keep watching in case it’s injected later
+          const observer = new MutationObserver(removeFramerBadge);
+          observer.observe(document.body, { childList: true, subtree: true });
         </script>
       `;
 
-      // Inject our script before </body>
       body = body.replace("</body>", `${removerScript}</body>`);
 
       res.setHeader("content-type", contentType);
