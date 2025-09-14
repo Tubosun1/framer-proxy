@@ -1,7 +1,7 @@
 export default async function handler(req, res) {
   try {
     const path = req.url.replace(/^\/api\/proxy/, "") || "/";
-    const target = `https://tecnoverse.framer.website/${path}`;
+    const target = `https://tecnoverse.framer.website${path}`;
 
     const framerRes = await fetch(target, {
       headers: { "User-Agent": req.headers["user-agent"] || "Vercel-Proxy" }
@@ -12,8 +12,19 @@ export default async function handler(req, res) {
     if (contentType.includes("text/html")) {
       let body = await framerRes.text();
 
-      // Remove "Made with Framer"
+      // 1. Remove "Made with Framer" text
       body = body.replace(/Made with Framer/gi, "");
+
+      // 2. Remove the Framer badge (entire <a> element linking to framer.com)
+      body = body.replace(/<a[^>]*href="https:\/\/framer\.com[^>]*>.*?<\/a>/gi, "");
+
+      // 3. Remove Framer favicon <link> tags
+      body = body.replace(/<link[^>]*rel=["']icon["'][^>]*>/gi, "");
+      body = body.replace(/<link[^>]*rel=["']shortcut icon["'][^>]*>/gi, "");
+
+      // 4. Optionally inject your own favicon
+      const customFavicon = `<link rel="icon" href="/favicon.ico" type="image/x-icon">`;
+      body = body.replace("</head>", `${customFavicon}</head>`);
 
       res.setHeader("content-type", contentType);
       res.status(framerRes.status).send(body);
@@ -22,10 +33,4 @@ export default async function handler(req, res) {
 
     const arrayBuffer = await framerRes.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-    const ct = framerRes.headers.get("content-type");
-    if (ct) res.setHeader("content-type", ct);
-    res.status(framerRes.status).send(buffer);
-  } catch (err) {
-    res.status(500).send("Proxy error: " + String(err));
-  }
-}
+    const ct = framerRes.headers.get("co
