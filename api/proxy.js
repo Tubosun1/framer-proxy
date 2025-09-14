@@ -12,11 +12,23 @@ export default async function handler(req, res) {
     if (contentType.includes("text/html")) {
       let body = await framerRes.text();
 
-      // Remove only the "Made with Framer" badge link
+      // Remove any static "Made with Framer" text/link
+      body = body.replace(/Made with Framer/gi, "");
       body = body.replace(/<a[^>]*href=["']https:\/\/framer\.com[^>]*>.*?<\/a>/gi, "");
 
-      // Remove the plain text version too, just in case
-      body = body.replace(/Made with Framer/gi, "");
+      // Inject script to remove/hide dynamic Framer badge
+      const removerScript = `
+        <script>
+          document.addEventListener("DOMContentLoaded", function() {
+            // Look for any links or elements containing "Framer"
+            const framerBadge = document.querySelectorAll('a[href*="framer.com"], [class*="framer"]');
+            framerBadge.forEach(el => el.style.display = "none");
+          });
+        </script>
+      `;
+
+      // Inject our script before </body>
+      body = body.replace("</body>", `${removerScript}</body>`);
 
       res.setHeader("content-type", contentType);
       res.status(framerRes.status).send(body);
