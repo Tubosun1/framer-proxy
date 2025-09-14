@@ -12,11 +12,19 @@ export default async function handler(req, res) {
     if (contentType.includes("text/html")) {
       let body = await framerRes.text();
 
-      // Remove "Made with Framer" text
+      // Remove any "Made with Framer" text
       body = body.replace(/Made with Framer/gi, "");
 
-      // Remove the entire Framer badge element (common pattern)
-      body = body.replace(/<a[^>]*href="https:\/\/framer\.com[^>]*>.*?<\/a>/gi, "");
+      // Remove any <a> tags that point to framer.com
+      body = body.replace(/<a[^>]*href=["']https:\/\/framer\.com[^>]*>.*?<\/a>/gi, "");
+
+      // Remove any <div> or <span> elements containing "Framer"
+      body = body.replace(/<div[^>]*>.*?Framer.*?<\/div>/gi, "");
+      body = body.replace(/<span[^>]*>.*?Framer.*?<\/span>/gi, "");
+
+      // Remove Framer badge script/style blocks
+      body = body.replace(/<style[^>]*>.*?Framer.*?<\/style>/gis, "");
+      body = body.replace(/<script[^>]*>.*?Framer.*?<\/script>/gis, "");
 
       res.setHeader("content-type", contentType);
       res.status(framerRes.status).send(body);
